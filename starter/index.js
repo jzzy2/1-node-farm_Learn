@@ -152,13 +152,89 @@ fs.readFile("./txt/start.txt", "utf-8", (err, data1) => {
 
 
  */
+//************************************************ */
+/*
+ We going to use the synchronouse code here
+    why ? becuas the top level code only execute once right i the beginning
+
+    remember the code na nasa outside ng call back function is only ever executed 
+    onece na nag start na yong program natin 
+
+    so hindi na mattern kung ba block yong execution since it only happned once
+    so hindi mo dapat ipag alala kung yong code na yon i nag block since 
+    naka top level namn sya which is execute once lang namn then hindi na sya mang yayari
+ */
+// response.end("API");
+const tempOverview = fs.readFileSync(`${__dirname}/templates/template-overview.html`, "utf-8");
+const tempCard = fs.readFileSync(`${__dirname}/templates/template-card.html`, "utf-8");
+const tempProduct = fs.readFileSync(`${__dirname}/templates/template-product.html`, "utf-8");
+const data = fs.readFileSync(`${__dirname}/dev-data/data.json`, "utf-8");
+
+const dataObj = JSON.parse(data); // this  convert our data into javasript json or object data  or javascript data
+/*
+ (err, data) => {
+     this will convert our data.json into javascript
+   
+        to be able to send to our front end you have to write  this 
+         console.log(productData);
+      
+    200 status code means okey
+     response.writeHead(200, { "Content-type": "application/json" });
+     response.end(data);
+    }); 
+
+*/
+
+const replaceTemplate = (temp, product) => {
+    // ! dont use the quotes just use the regular expression!
+    // -> / gamit ka niyan tas yong meaning ng g -> global indicate na lahat ng productName mapapalitan ng product.name
+    // by using let we can manipulate the replace and by doing this hindi natin kailangan mag create ng new variable this is one of the best practice!
+    let output = temp.replace(/{%PRODUCTNAME%}/g, product.productName);
+    output = output.replace(/{%ID%}/g, product.id);
+    output = output.replace(/{%IMAGE%}/g, product.image);
+    output = output.replace(/{%PRICE%}/g, product.price);
+    output = output.replace(/{%FROM%}/g, product.from);
+    output = output.replace(/{%NUTRIENTS%}/g, product.nutrients);
+    output = output.replace(/{%QUANTITY%}/g, product.quantity);
+    output = output.replace(/{%DESCRIPTION%}/g, product.description);
+    if (!product.organic) {
+        output = output.replace(/{%NOT_ORGANIC%}/g, "not-organic");
+    }
+
+    return output;
+};
 
 const server = http.createServer((request, response) => {
-    const pathName = request.url;
-    if (pathName === "/" || pathName === "/overview") {
-        response.end(`this is the OVERVIEW`);
-    } else if (pathName === `/product`) {
-        response.end("This is the PRODUCT");
+    const { query, pathname } = url.parse(request.url, true);
+
+    //*Overview page
+    if (pathname === "/" || pathname === "/overview") {
+        response.writeHead(200, { "Content-type": "text/html" }); // pag mag reresponse ka ng html dapat yong Content Type os -> text/html
+        // to be zble to add the value to our html we need to replace the the place holder na ginawa natin don sa mismong html
+        const cardHtml = dataObj.map((dataObj) => replaceTemplate(tempCard, dataObj)).join("");
+
+        /*
+          we also replace thne tempOverview natin using the PRODUCT_CARDS 
+          and the converted version of our dataObj natin na ni replace natin sa replace temp na naka convert sa string
+         */
+        const output = tempOverview.replace("{%PRODUCT_CARDS%}", cardHtml);
+        response.end(output);
+
+        // *Product page
+    } else if (pathname === `/product`) {
+        response.writeHead(200, { "Content-type": "text/html" });
+        const product = dataObj[query.id]; // our query is object that why we need to do this
+        // the tempProduct is basically the html content na ginawa natin or yong template while the product is the id
+        const output = replaceTemplate(tempProduct, product);
+        response.end(output);
+        // *API
+    } else if (pathname === "/api") {
+        // what we send here is the writeHead kung anong klasing content yong pinasa natin
+        response.writeHead(200, { "Content-type": "application/json" });
+        // this will diplay in our web browser
+        response.end(data);
+
+        // !NOT FOUND
     } else {
         // so basically yong logic dito if the url does not exist to our server this code will execute
         // response writeHead this will return 404 sa console  natin
